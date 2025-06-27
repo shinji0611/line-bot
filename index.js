@@ -28,5 +28,7 @@ function handleEvent(event) {
     text: `あなたは「${event.message.text}」と送りましたね！`,
   });
 }
-
-app.listen(10000);
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

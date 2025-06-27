@@ -1,6 +1,7 @@
 const express = require('express');
-const app = express();
 const line = require('@line/bot-sdk');
+
+const app = express();
 
 const config = {
   channelAccessToken: 'fHJIgvHg1ZtHgD9RTvmyLvdQb8U9e+06Pj24b4m7YVR8Vn1fepH1kumqyeCRW/hxzAp922h29Fjn/N7ePyEPmJJ2qhFlAf8e/qfXpueecT6X4VuTJPJC6/x4sGujWyIJJHSVbY4tNlLjnhSp621q/AdB04t89/1O/w1cDnyilFU=',
@@ -11,10 +12,14 @@ const client = new line.Client(config);
 
 app.use(express.json());
 
-app.post('/webhook', line.middleware({ channelSecret: config.channelSecret }), (req, res) => {
+app.post('/webhook', line.middleware(config), (req, res) => {
   Promise
     .all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result));
+    .then((result) => res.json(result))
+    .catch((err) => {
+      console.error(err);
+      res.status(500).end();
+    });
 });
 
 function handleEvent(event) {

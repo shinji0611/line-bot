@@ -1,7 +1,6 @@
 const express = require('express');
-const line = require('@line/bot-sdk');
-
 const app = express();
+const line = require('@line/bot-sdk');
 
 const config = {
   channelAccessToken: 'fHJIgvHg1ZtHgD9RTvmyLvdQb8U9e+06Pj24b4m7YVR8Vn1fepH1kumqyeCRW/hxzAp922h29Fjn/N7ePyEPmJJ2qhFlAf8e/qfXpueecT6X4VuTJPJC6/x4sGujWyIJJHSVbY4tNlLjnhSp621q/AdB04t89/1O/w1cDnyilFU=',
@@ -29,7 +28,7 @@ function handleEvent(event) {
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: あなたは「${event.message.text}」と送りましたね！
+    text: `あなたは「${event.message.text}」と送りましたね！`
   });
 }
 

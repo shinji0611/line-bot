@@ -1,20 +1,20 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { Configuration, OpenAIApi } = require('openai');
+const { OpenAI } = require('openai'); // ← v4用に修正
 
 const app = express();
 
 // LINE設定
 const config = {
-  channelAccessToken: 'fHJIgvHg1ZtHgD9RTvmyLvdQb8U9e+06Pj24b4m7YVR8Vn1fepH1kumqyeCRW/hxzAp922h29Fjn/N7ePyEPmJJ2qhFlAf8e/qfXpueecT6X4VuTJPJC6/x4sGujWyIJJHSVbY4tNlLjnhSp621q/AdB04t89/1O/w1cDnyilFU=',
-  channelSecret: '27460bb1fba83b4ebe6fd0376a203663'
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET
 };
 const client = new line.Client(config);
 
-// ChatGPT設定
-const openai = new OpenAIApi(new Configuration({
-  apiKey: process.env.OPENAI_API_KEY // ← さっき取得したAPIキーをここに貼る
-}));
+// ChatGPT設定（OpenAI v4対応）
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 app.post('/webhook', line.middleware(config), async (req, res) => {
   const events = req.body.events;
@@ -27,15 +27,13 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  // ChatGPTへ送信
-  const gptReply = await openai.createChatCompletion({
+  const gptReply = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     messages: [{ role: 'user', content: event.message.text }]
   });
 
-  const replyText = gptReply.data.choices[0].message.content;
+  const replyText = gptReply.choices[0].message.content;
 
-  // LINEに返信
   return client.replyMessage(event.replyToken, {
     type: 'text',
     text: replyText

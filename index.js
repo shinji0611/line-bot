@@ -1,7 +1,8 @@
 const express = require('express');
-const app = express();
 const line = require('@line/bot-sdk');
+const app = express();
 
+// LINEチャネルの認証情報（ご自身のものに置き換えてください）
 const config = {
   channelAccessToken: 'fHJIgvHg1ZtHgD9RTvmyLvdQb8U9e+06Pj24b4m7YVR8Vn1fepH1kumqyeCRW/hxzAp922h29Fjn/N7ePyEPmJJ2qhFlAf8e/qfXpueecT6X4VuTJPJC6/x4sGujWyIJJHSVbY4tNlLjnhSp621q/AdB04t89/1O/w1cDnyilFU=',
   channelSecret: '27460bb1fba83b4ebe6fd0376a203663'
@@ -11,7 +12,8 @@ const client = new line.Client(config);
 
 app.use(express.json());
 
-app.post('/webhook', line.middleware({ channelSecret: config.channelSecret }), (req, res) => {
+// Webhook エンドポイント
+app.post('/webhook', line.middleware(config), (req, res) => {
   Promise
     .all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -21,6 +23,7 @@ app.post('/webhook', line.middleware({ channelSecret: config.channelSecret }), (
     });
 });
 
+// イベント処理（テキストメッセージへの返信）
 function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
@@ -32,6 +35,7 @@ function handleEvent(event) {
   });
 }
 
+// ポート設定（Renderの環境変数を考慮）
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

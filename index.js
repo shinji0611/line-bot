@@ -11,7 +11,7 @@ const client = new line.Client(config);
 
 app.use(express.json());
 
-app.post('/webhook', line.middleware(config), (req, res) => {
+app.post('/webhook', line.middleware({ channelSecret: config.channelSecret }), (req, res) => {
   Promise
     .all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -28,7 +28,7 @@ function handleEvent(event) {
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `あなたは「${event.message.text}」と送りましたね！`
+    text: あなたは「${event.message.text}」と送りましたね！
   });
 }
 

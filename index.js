@@ -28,7 +28,7 @@ function handleEvent(event) {
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `あなたは「${event.message.text}」と送りましたね！`
+    text:` あなたは「${event.message.text}」と送りましたね！`
   });
 }
 

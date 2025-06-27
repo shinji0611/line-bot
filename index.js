@@ -3,7 +3,6 @@ const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
 
 const app = express();
-app.use(express.json());
 
 // セッション保持用（ユーザーごとの会話履歴）
 const userSessions = new Map();

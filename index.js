@@ -3,7 +3,6 @@ const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
 
 const app = express();
-app.use(express.json());
 
 // LINE設定
 const config = {
@@ -12,14 +11,14 @@ const config = {
 };
 const client = new line.Client(config);
 
-// ChatGPT設定（OpenAI v4対応）
+// ChatGPT設定
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
 // Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
-  res.status(200).end(); // LINEに即レス
+  res.status(200).end(); // 即レス
 
   const events = req.body.events;
   for (const event of events) {

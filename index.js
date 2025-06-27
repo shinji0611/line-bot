@@ -9,14 +9,12 @@ const config = {
 
 const client = new line.Client(config);
 
-app.use(express.json());
-
 app.post('/webhook', line.middleware(config), (req, res) => {
   Promise
     .all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
     .catch((err) => {
-      console.error(err);
+      console.error('エラーログ:', err);
       res.status(500).end();
     });
 });

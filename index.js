@@ -1,8 +1,9 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { OpenAI } = require('openai'); // ← v4用に修正
+const { OpenAI } = require('openai');
 
 const app = express();
+app.use(express.json());
 
 // LINE設定
 const config = {
@@ -16,16 +17,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
+  res.status(200).end(); // LINEに即レス
+
   const events = req.body.events;
-  const results = await Promise.all(events.map(handleEvent));
-  res.json(results);
+  for (const event of events) {
+    await handleEvent(event);
+  }
 });
 
+// イベント処理関数
 async function handleEvent(event) {
   console.log('受信イベント:', JSON.stringify(event, null, 2));
+
   if (event.type !== 'message' || event.message.type !== 'text') {
-    return Promise.resolve(null);
+    return;
   }
 
   const gptReply = await openai.chat.completions.create({
@@ -35,12 +42,13 @@ async function handleEvent(event) {
 
   const replyText = gptReply.choices[0].message.content;
 
-  return client.replyMessage(event.replyToken, {
+  await client.replyMessage(event.replyToken, {
     type: 'text',
     text: replyText
   });
 }
 
+// サーバー起動
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

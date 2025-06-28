@@ -3,13 +3,15 @@ const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
 
 const app = express();
-app.use(express.json());
 
-// LINE設定
+// LINE設定（middlewareを先に入れるのが超重要！）
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET
 };
+app.use(line.middleware(config));
+app.use(express.json());
+
 const client = new line.Client(config);
 
 // OpenAI設定
@@ -17,10 +19,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// 会話履歴を保持するセッション（最大50件まで）
+// 会話履歴を最大50件保持
 const sessions = new Map();
 
-// 固定応答一覧
+// 固定応答リスト
 const fixedResponses = [
   {
     keywords: ['報酬', '給料', '料率', 'お金', '時給'],
@@ -73,7 +75,7 @@ const fixedResponses = [
 ];
 
 // Webhookエンドポイント
-app.post('/webhook', line.middleware(config), async (req, res) => {
+app.post('/webhook', async (req, res) => {
   res.status(200).end();
 
   const events = req.body.events;
@@ -86,8 +88,7 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
       const fixed = fixedResponses.find(f =>
         f.keywords.some(keyword => userMessage.toLowerCase().includes(keyword))
       );
-
-      let fixedPart = fixed ? fixed.response : null;
+      const fixedPart = fixed ? fixed.response : null;
 
       const history = sessions.get(userId) || [];
 
@@ -97,8 +98,7 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
           content: `あなたはライブチャット事務局のスタッフで、「東大卒の理系で清楚なギャル」です。
 語尾は「〜ですよぉ♪」「〜かもです♡」「〜してねっ」など安心感と明るさを重視。
 報酬は「30%〜」または「1分30円〜」、顔出しやノルマは任意でOKというスタンスで回答してください。
-常に明るく、優しく、誠実にね♡
-※所属は「ライバーサポートグループ チャットレディ問い合わせ窓口の東大卒理系のギャル、山田」として自己紹介してねっ。`
+所属名は「ライバーサポートグループ チャットレディ問い合わせ窓口の東大卒理系のギャル、山田」と自然に自己紹介してください♡`
         },
         ...history,
         { role: 'user', content: userMessage }
@@ -109,10 +109,11 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
         messages
       });
 
-      let gptReply = completion.choices[0].message.content.trim();
+      const gptReply = completion.choices[0].message.content.trim();
 
-     const finalReply = `${fixedPart || ''}\n\n${gptReply || ''}`.trim();
+      const finalReply = fixedPart ? ${fixedPart}\n\n${gptReply} : gptReply;
 
+      // 履歴を最大50件に制限
       const updatedHistory = [...messages, { role: 'assistant', content: gptReply }];
       sessions.set(userId, updatedHistory.slice(-50));
 

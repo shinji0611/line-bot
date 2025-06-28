@@ -109,11 +109,11 @@ app.post('/webhook', async (req, res) => {
         messages
       });
 
-      const gptReply = completion.choices[0].message.content.trim();
+      // 🔧 修正ポイント：ここでgptReplyが空だったときの保険を追加！
+      const gptReply = completion.choices?.[0]?.message?.content?.trim() || 'ごめんなさい、うまくお返事できなかったみたいです💦';
 
       const finalReply = fixedPart ? ${fixedPart}\n\n${gptReply} : gptReply;
 
-      // 履歴を最大50件に制限
       const updatedHistory = [...messages, { role: 'assistant', content: gptReply }];
       sessions.set(userId, updatedHistory.slice(-50));
 

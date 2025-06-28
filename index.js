@@ -3,7 +3,6 @@ const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
 
 const app = express();
-app.use(express.json());
 
 // LINE設定
 const config = {
@@ -17,7 +16,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// 会話履歴を保持するセッション（簡易Map方式）
+// 会話履歴セッション
 const sessions = new Map();
 
 // 固定応答一覧
@@ -72,8 +71,8 @@ const fixedResponses = [
   }
 ];
 
-// Webhookエンドポイント
-app.post('/webhook', line.middleware(config), async (req, res) => {
+// Webhook（LINE署名検証のため body 未加工で受ける）
+app.post('/webhook', line.middleware(config), express.json(), async (req, res) => {
   res.status(200).end();
 
   const events = req.body.events;
@@ -81,9 +80,9 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   for (const event of events) {
     if (event.type === 'message' && event.message.type === 'text') {
       const userMessage = event.message.text;
-      const userId = event.source?.userId || 'anonymous';
+      const userId = event.source.userId;
 
-      // 固定返答チェック
+      // 固定応答チェック
       const fixed = fixedResponses.find(f =>
         f.keywords.some(keyword => userMessage.toLowerCase().includes(keyword))
       );
@@ -107,23 +106,17 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
           { role: 'user', content: userMessage }
         ];
 
-        try {
-          const completion = await openai.chat.completions.create({
-            model: 'gpt-4',
-            messages
-          });
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4',
+          messages
+        });
 
-          reply = completion.choices[0].message.content.trim();
+        reply = completion.choices[0].message.content.trim();
 
-          const updatedHistory = [...messages, { role: 'assistant', content: reply }];
-          sessions.set(userId, updatedHistory.slice(-10));
-        } catch (error) {
-          console.error('OpenAIエラー:', error);
-          reply = '今ちょっとお返事できないみたいですっ💦 もう一度送ってみてくださいねっ✨';
-        }
+        const updatedHistory = [...messages, { role: 'assistant', content: reply }];
+        sessions.set(userId, updatedHistory.slice(-10));
       }
 
-      // LINEへ返信
       await client.replyMessage(event.replyToken, {
         type: 'text',
         text: reply

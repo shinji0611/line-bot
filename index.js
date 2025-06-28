@@ -19,10 +19,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// 会話履歴を最大50件保持
+// 会話履歴保持
 const sessions = new Map();
 
-// 固定応答（キーワードでマッチ）
+// 固定応答キーワードと応答
 const fixedResponses = [
   {
     keywords: ['報酬', '給料', '料率', 'お金', '時給'],
@@ -85,13 +85,11 @@ app.post('/webhook', async (req, res) => {
       const userMessage = event.message.text;
       const userId = event.source.userId;
 
-      // 固定応答チェック
       const fixed = fixedResponses.find(f =>
         f.keywords.some(keyword => userMessage.toLowerCase().includes(keyword))
       );
       const fixedPart = fixed ? fixed.response : null;
 
-      // 過去の履歴取得
       const history = sessions.get(userId) || [];
 
       const messages = [
@@ -126,7 +124,6 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// サーバー起動
 app.listen(process.env.PORT || 3000, () => {
-  console.log('LINE bot is running with hybrid reply and 50-session history support...');
+  console.log('LINE bot is running...');
 });

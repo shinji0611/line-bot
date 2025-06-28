@@ -4,7 +4,7 @@ const { OpenAI } = require('openai');
 
 const app = express();
 
-// LINE設定（middlewareを先に入れるのが超重要！）
+// LINE設定
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET
@@ -22,7 +22,7 @@ const openai = new OpenAI({
 // 会話履歴を最大50件保持
 const sessions = new Map();
 
-// 固定応答リスト
+// 固定応答（キーワードでマッチ）
 const fixedResponses = [
   {
     keywords: ['報酬', '給料', '料率', 'お金', '時給'],
@@ -85,11 +85,13 @@ app.post('/webhook', async (req, res) => {
       const userMessage = event.message.text;
       const userId = event.source.userId;
 
+      // 固定応答チェック
       const fixed = fixedResponses.find(f =>
         f.keywords.some(keyword => userMessage.toLowerCase().includes(keyword))
       );
       const fixedPart = fixed ? fixed.response : null;
 
+      // 過去の履歴取得
       const history = sessions.get(userId) || [];
 
       const messages = [
@@ -109,7 +111,6 @@ app.post('/webhook', async (req, res) => {
         messages
       });
 
-      // 🔧 修正ポイント：ここでgptReplyが空だったときの保険を追加！
       const gptReply = completion.choices?.[0]?.message?.content?.trim() || 'ごめんなさい、うまくお返事できなかったみたいです💦';
 
       const finalReply = fixedPart ? ${fixedPart}\n\n${gptReply} : gptReply;
@@ -125,6 +126,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// サーバー起動
 app.listen(process.env.PORT || 3000, () => {
   console.log('LINE bot is running with hybrid reply and 50-session history support...');
 });

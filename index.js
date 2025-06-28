@@ -1,11 +1,14 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
+const admin = require('firebase-admin');
 
-const app = express();
-
-// セッション保持用（ユーザーごとの会話履歴）
-const userSessions = new Map();
+// Firebase初期化（環境変数から）
+const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG_JSON);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
 
 // LINE設定
 const config = {
@@ -14,62 +17,70 @@ const config = {
 };
 const client = new line.Client(config);
 
-// OpenAI設定（v4）
+// ChatGPT設定
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+const app = express();
+app.use(express.json());
+
+// Firestore会話履歴関数
+async function saveHistory(userId, role, message) {
+  const ref = db.collection('users').doc(userId);
+  await ref.set({
+    history: admin.firestore.FieldValue.arrayUnion({ role, content: message })
+  }, { merge: true });
+}
+
+async function getHistory(userId) {
+  const ref = db.collection('users').doc(userId);
+  const doc = await ref.get();
+  return doc.exists ? doc.data().history : [];
+}
+
 // Webhookエンドポイント
 app.post('/webhook', line.middleware(config), async (req, res) => {
-  res.status(200).end(); // LINEに即レスポンス
+  res.status(200).end();
 
   const events = req.body.events;
   for (const event of events) {
-    await handleEvent(event);
+    if (event.type === 'message' && event.message.type === 'text') {
+      const userId = event.source.userId;
+      const userMessage = event.message.text;
+
+      // 履歴取得
+      const history = await getHistory(userId);
+
+      // 新しい発言を履歴に追加
+      history.push({ role: 'user', content: userMessage });
+
+      // ChatGPTに送信
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: 'あなたはライブチャット事務局のスタッフです。チャットレディの問い合わせに親切・丁寧に答えてください。' },
+          ...history
+        ]
+      });
+
+      const reply = completion.choices[0].message.content;
+
+      // LINE返信
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: reply
+      });
+
+      // 履歴を保存
+      await saveHistory(userId, 'user', userMessage);
+      await saveHistory(userId, 'assistant', reply);
+    }
   }
 });
 
-// イベント処理関数
-async function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') return;
-
-  const userId = event.source.userId;
-
-  // セッション履歴の取得 or 初期化
-  const history = userSessions.get(userId) || [
-    {
-      role: 'system',
-      content:
-        'あなたはセクシーでギャルっぽくて、ノリが良くてちょっと小悪魔なLINEチャットボットです。語尾に「〜だよん💋」「〜なの♡」「マジでヤバくない？」などギャル語を自然に使ってね。'
-    }
-  ];
-
-  // ユーザーのメッセージ追加
-  history.push({ role: 'user', content: event.message.text });
-
-  // ChatGPTに問い合わせ
-  const gptReply = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: history
-  });
-
-  const replyText = gptReply.choices[0].message.content;
-
-  // 返信を履歴に追加
-  history.push({ role: 'assistant', content: replyText });
-
-  // セッション更新
-  userSessions.set(userId, history.slice(-10)); // 過去10件だけ保持（メモリ節約）
-
-  // LINEに返信
-  await client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: replyText
-  });
-}
-
-// サーバー起動
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// 起動
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`LINE Bot is running on port ${PORT}`);
 });

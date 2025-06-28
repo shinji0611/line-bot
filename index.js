@@ -111,8 +111,7 @@ app.post('/webhook', async (req, res) => {
 
       const gptReply = completion.choices?.[0]?.message?.content?.trim() || 'ごめんなさい、うまくお返事できなかったみたいです💦';
 
-      const finalReply = fixedPart ? ${fixedPart}\n\n${gptReply} : gptReply;
-
+     const finalReply = fixedPart ? ${fixedPart}\n\n${gptReply} : gptReply;
       const updatedHistory = [...messages, { role: 'assistant', content: gptReply }];
       sessions.set(userId, updatedHistory.slice(-50));
 

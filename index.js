@@ -20,7 +20,7 @@ const openai = new OpenAI({
 // 会話履歴を保持するセッション（簡易Map方式）
 const sessions = new Map();
 
-// 固定応答一覧（質問ごとにカスタム対応）
+// 固定応答一覧
 const fixedResponses = [
   {
     keywords: ['報酬', '給料', '料率', 'お金', '時給'],
@@ -81,7 +81,7 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   for (const event of events) {
     if (event.type === 'message' && event.message.type === 'text') {
       const userMessage = event.message.text;
-      const userId = event.source.userId;
+      const userId = event.source?.userId || 'anonymous';
 
       // 固定返答チェック
       const fixed = fixedResponses.find(f =>
@@ -93,10 +93,8 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
       if (fixed) {
         reply = fixed.response;
       } else {
-        // 履歴取得 or 初期化
         const history = sessions.get(userId) || [];
 
-        // GPTリクエストに使うmessages生成
         const messages = [
           {
             role: 'system',
@@ -109,16 +107,20 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
           { role: 'user', content: userMessage }
         ];
 
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4',
-          messages
-        });
+        try {
+          const completion = await openai.chat.completions.create({
+            model: 'gpt-4',
+            messages
+          });
 
-        reply = completion.choices[0].message.content.trim();
+          reply = completion.choices[0].message.content.trim();
 
-        // 履歴保存（最新10件まで）
-        const updatedHistory = [...messages, { role: 'assistant', content: reply }];
-        sessions.set(userId, updatedHistory.slice(-10));
+          const updatedHistory = [...messages, { role: 'assistant', content: reply }];
+          sessions.set(userId, updatedHistory.slice(-10));
+        } catch (error) {
+          console.error('OpenAIエラー:', error);
+          reply = '今ちょっとお返事できないみたいですっ💦 もう一度送ってみてくださいねっ✨';
+        }
       }
 
       // LINEへ返信

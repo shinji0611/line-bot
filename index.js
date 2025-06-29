@@ -3,7 +3,6 @@ const line = require('@line/bot-sdk');
 const { OpenAI } = require('openai');
 
 const app = express();
-app.use(express.json());
 
 // LINE設定
 const config = {
@@ -20,7 +19,7 @@ const openai = new OpenAI({
 // 会話履歴保存（最大50件）
 const sessions = new Map();
 
-// スタジオ情報（全国網羅、画像リスト反映済）
+// スタジオ情報（画像リスト反映済、全国網羅）
 const studioResponses = {
   "札幌": "【札幌店】札幌駅 徒歩5分",
   "仙台": "【仙台店】仙台駅 徒歩7分",
@@ -58,7 +57,7 @@ const studioResponses = {
   "佐賀": "【佐賀店】佐賀駅 徒歩6分"
 };
 
-// 固定応答
+// 固定応答設定
 const fixedResponses = [
   {
     keywords: ['報酬', '給料', '料率', 'お金', '時給'],
@@ -70,7 +69,7 @@ const fixedResponses = [
   }
 ];
 
-// Webhook処理
+// Webhookルーティング
 app.post('/webhook', line.middleware(config), async (req, res) => {
   res.status(200).end();
   const events = req.body.events;
@@ -88,12 +87,12 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
       const fixed = fixedResponses.find(f => f.keywords.some(k => userMessage.includes(k)));
       const fixedPart = fixed ? fixed.response : null;
 
-      // 履歴取得・更新
+      // 履歴管理
       const history = sessions.get(userId) || [];
       const updatedHistory = [...history, { role: 'user', content: userMessage }];
       sessions.set(userId, updatedHistory.slice(-50));
 
-      // GPTに渡す履歴（直近10件）
+      // GPTへ履歴送信（直近10件）
       const messages = [
         {
           role: 'system',
@@ -102,7 +101,6 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
         ...updatedHistory.slice(-10).map(msg => ({ role: msg.role, content: msg.content }))
       ];
 
-      // GPT応答
       let gptReply = '';
       try {
         const completion = await openai.chat.completions.create({
